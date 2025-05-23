@@ -1,0 +1,199 @@
+package gui;
+
+import chat.Mensagem;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.net.Socket;
+
+public class ClienteSwing extends JFrame {
+    private JTextArea areaTexto;
+    private JTextField campoEntrada;
+    private String username;
+    private Socket socket;
+    private ObjectOutputStream out;
+    private ObjectInputStream in;
+    private boolean running;
+
+    public ClienteSwing(String username, String serverAddress, int serverPort) throws IOException {
+        this.username = username;
+        this.socket = new Socket(serverAddress, serverPort);
+        this.out = new ObjectOutputStream(socket.getOutputStream());
+        this.in = new ObjectInputStream(socket.getInputStream());
+        this.running = true;
+
+        initUI();
+        startMessageReceiver();
+        sendLoginMessage();
+    }
+
+    private void initUI() {
+        setTitle("Chat TCP - Cliente: " + username);
+        setSize(500, 500);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        areaTexto = new JTextArea();
+        areaTexto.setEditable(false);
+        areaTexto.setFont(new Font("Arial", Font.PLAIN, 14));
+        add(new JScrollPane(areaTexto), BorderLayout.CENTER);
+
+        campoEntrada = new JTextField();
+        campoEntrada.setFont(new Font("Arial", Font.PLAIN, 14));
+        add(campoEntrada, BorderLayout.SOUTH);
+
+        // Adiciona menu com comandos
+        JMenuBar menuBar = new JMenuBar();
+        JMenu menu = new JMenu("Ações");
+
+        JMenuItem usuariosItem = new JMenuItem("Listar Usuários");
+        usuariosItem.addActionListener(e -> sendCommand("/usuarios"));
+
+        JMenuItem sairItem = new JMenuItem("Sair");
+        sairItem.addActionListener(e -> disconnect());
+
+        menu.add(usuariosItem);
+        menu.addSeparator();
+        menu.add(sairItem);
+        menuBar.add(menu);
+        setJMenuBar(menuBar);
+
+        // Ação ao pressionar Enter no campo de entrada
+        campoEntrada.addActionListener(e -> {
+            String texto = campoEntrada.getText().trim();
+            if (!texto.isEmpty()) {
+                handleUserInput(texto);
+                campoEntrada.setText("");
+            }
+        });
+
+        // Fechar a janela corretamente
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                disconnect();
+            }
+        });
+    }
+
+    private void handleUserInput(String text) {
+        try {
+            if (text.equalsIgnoreCase("/sair")) {
+                out.writeObject(new Mensagem(username, null, "/sair"));
+                disconnect();
+            } else if (text.startsWith("/privado:")) {
+                out.writeObject(new Mensagem(username, null, text));
+            } else if (text.equalsIgnoreCase("/usuarios")) {
+                out.writeObject(new Mensagem(username, null, "/usuarios"));
+            } else {
+                out.writeObject(new Mensagem(username, null, text));
+            }
+            out.flush();
+        } catch (IOException e) {
+            appendMessage("Erro ao enviar mensagem: " + e.getMessage());
+        }
+    }
+
+    private void sendLoginMessage() {
+        try {
+            out.writeObject(new Mensagem(username, null, "Conectando..."));
+            out.flush();
+        } catch (IOException e) {
+            appendMessage("Erro ao conectar: " + e.getMessage());
+            disconnect();
+        }
+    }
+
+    private void startMessageReceiver() {
+        new Thread(() -> {
+            try {
+                while (running) {
+                    Mensagem msg = (Mensagem) in.readObject();
+                    SwingUtilities.invokeLater(() -> appendMessage(msg.toString()));
+                }
+            } catch (IOException | ClassNotFoundException e) {
+                if (running) {
+                    SwingUtilities.invokeLater(() ->
+                            appendMessage("Conexão com o servidor foi perdida."));
+                    running = false;
+                }
+            }
+        }).start();
+    }
+
+    private void appendMessage(String message) {
+        areaTexto.append(message + "\n");
+        // Rolagem automática para a mensagem mais recente
+        areaTexto.setCaretPosition(areaTexto.getDocument().getLength());
+    }
+
+    private void sendCommand(String command) {
+        campoEntrada.setText(command);
+        campoEntrada.postActionEvent();
+    }
+
+    private void disconnect() {
+        running = false;
+        try {
+            if (out != null) {
+                out.writeObject(new Mensagem(username, null, "/sair"));
+                out.flush();
+            }
+            if (in != null) in.close();
+            if (out != null) out.close();
+            if (socket != null) socket.close();
+        } catch (IOException e) {
+            System.err.println("Erro ao fechar recursos: " + e.getMessage());
+        }
+        dispose();
+    }
+
+    public static void main(String[] args) {
+        // Primeiro obtemos o username
+        String usernameInput = JOptionPane.showInputDialog(
+                null,
+                "Digite seu nome de usuário:",
+                "Conectar ao Chat",
+                JOptionPane.PLAIN_MESSAGE
+        );
+
+        // Se cancelar ou não digitar nome, encerra
+        if (usernameInput == null || usernameInput.trim().isEmpty()) {
+            System.exit(0);
+        }
+
+        // Usamos a variável final dentro do lambda
+        final String finalUsername = usernameInput.trim();
+
+        SwingUtilities.invokeLater(() -> {
+            try {
+                ClienteSwing cliente = new ClienteSwing(
+                        finalUsername,
+                        "localhost",
+                        12345
+                );
+                cliente.setVisible(true);
+
+                JOptionPane.showMessageDialog(
+                        cliente,
+                        "Conectado ao servidor.\n\n" +
+                                "Comandos disponíveis:\n" +
+                                "- /sair - Desconectar\n" +
+                                "- /usuarios - Listar usuários\n" +
+                                "- /privado:usuario:mensagem - Mensagem privada",
+                        "Bem-vindo ao Chat",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(
+                        null,
+                        "Não foi possível conectar ao servidor: " + e.getMessage(),
+                        "Erro de Conexão",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                System.exit(1);
+            }
+        });
+    }
+}
