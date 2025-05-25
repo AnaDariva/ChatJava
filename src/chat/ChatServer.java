@@ -40,11 +40,9 @@ public class ChatServer {
                 out = new ObjectOutputStream(socket.getOutputStream());
                 in = new ObjectInputStream(socket.getInputStream());
 
-                // Primeira mensagem deve ser o nome de usuário
                 Mensagem loginMsg = (Mensagem) in.readObject();
                 this.username = loginMsg.getRemetente();
 
-                // Verifica se o nome já está em uso
                 if (clients.containsKey(username)) {
                     sendMessage(new Mensagem("Servidor", username, "Nome de usuário já em uso. Conexão será fechada."));
                     socket.close();
@@ -55,7 +53,6 @@ public class ChatServer {
                 broadcast(new Mensagem("Servidor", null, username + " entrou no chat."));
                 System.out.println(username + " conectado. Clientes ativos: " + clients.size());
 
-                // Processa mensagens do cliente
                 while (true) {
                     Mensagem msg = (Mensagem) in.readObject();
 
@@ -104,7 +101,6 @@ public class ChatServer {
             if (clients.containsKey(recipient)) {
                 Mensagem privateMessage = new Mensagem(msg.getRemetente(), recipient, privateMsg);
                 clients.get(recipient).sendMessage(privateMessage);
-                // Envia cópia para o remetente
                 sendMessage(privateMessage);
             } else {
                 sendMessage(new Mensagem("Servidor", msg.getRemetente(), "Usuário " + recipient + " não encontrado."));

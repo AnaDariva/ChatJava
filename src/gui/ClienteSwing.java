@@ -1,6 +1,7 @@
 package gui;
 
 import chat.Mensagem;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -32,18 +33,30 @@ public class ClienteSwing extends JFrame {
         setTitle("Chat TCP - Cliente: " + username);
         setSize(500, 500);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
+        setLayout(new BorderLayout());
+
 
         areaTexto = new JTextArea();
         areaTexto.setEditable(false);
         areaTexto.setFont(new Font("Arial", Font.PLAIN, 14));
         add(new JScrollPane(areaTexto), BorderLayout.CENTER);
 
+
+        JPanel bottomPanel = new JPanel(new BorderLayout());
         campoEntrada = new JTextField();
         campoEntrada.setFont(new Font("Arial", Font.PLAIN, 14));
-        add(campoEntrada, BorderLayout.SOUTH);
 
-        // Adiciona menu com comandos
+        JButton enviarBtn = new JButton("Enviar");
+        enviarBtn.addActionListener(e -> sendMessageFromField());
+
+        bottomPanel.add(campoEntrada, BorderLayout.CENTER);
+        bottomPanel.add(enviarBtn, BorderLayout.EAST);
+        add(bottomPanel, BorderLayout.SOUTH);
+        campoEntrada.addActionListener(e -> sendMessageFromField());
+        campoEntrada.setFocusable(true);
+        campoEntrada.requestFocusInWindow();
+
+        // Menu
         JMenuBar menuBar = new JMenuBar();
         JMenu menu = new JMenu("Ações");
 
@@ -59,16 +72,7 @@ public class ClienteSwing extends JFrame {
         menuBar.add(menu);
         setJMenuBar(menuBar);
 
-        // Ação ao pressionar Enter no campo de entrada
-        campoEntrada.addActionListener(e -> {
-            String texto = campoEntrada.getText().trim();
-            if (!texto.isEmpty()) {
-                handleUserInput(texto);
-                campoEntrada.setText("");
-            }
-        });
 
-        // Fechar a janela corretamente
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -77,13 +81,27 @@ public class ClienteSwing extends JFrame {
         });
     }
 
+    private void sendMessageFromField() {
+        String texto = campoEntrada.getText().trim();
+        if (!texto.isEmpty()) {
+            handleUserInput(texto);
+            campoEntrada.setText("");
+            campoEntrada.requestFocusInWindow();
+        }
+    }
+
     private void handleUserInput(String text) {
         try {
             if (text.equalsIgnoreCase("/sair")) {
                 out.writeObject(new Mensagem(username, null, "/sair"));
                 disconnect();
             } else if (text.startsWith("/privado:")) {
-                out.writeObject(new Mensagem(username, null, text));
+                String[] parts = text.split(":", 3);
+                if (parts.length == 3) {
+                    out.writeObject(new Mensagem(username, parts[1].trim(), parts[2].trim()));
+                } else {
+                    appendMessage("Formato inválido. Use /privado:usuário:mensagem");
+                }
             } else if (text.equalsIgnoreCase("/usuarios")) {
                 out.writeObject(new Mensagem(username, null, "/usuarios"));
             } else {
@@ -124,7 +142,6 @@ public class ClienteSwing extends JFrame {
 
     private void appendMessage(String message) {
         areaTexto.append(message + "\n");
-        // Rolagem automática para a mensagem mais recente
         areaTexto.setCaretPosition(areaTexto.getDocument().getLength());
     }
 
@@ -150,48 +167,36 @@ public class ClienteSwing extends JFrame {
     }
 
     public static void main(String[] args) {
-        // Primeiro obtemos o username
-        String usernameInput = JOptionPane.showInputDialog(
+        String username = JOptionPane.showInputDialog(
                 null,
                 "Digite seu nome de usuário:",
                 "Conectar ao Chat",
-                JOptionPane.PLAIN_MESSAGE
-        );
+                JOptionPane.PLAIN_MESSAGE);
 
-        // Se cancelar ou não digitar nome, encerra
-        if (usernameInput == null || usernameInput.trim().isEmpty()) {
+        if (username == null || username.trim().isEmpty()) {
             System.exit(0);
         }
 
-        // Usamos a variável final dentro do lambda
-        final String finalUsername = usernameInput.trim();
-
         SwingUtilities.invokeLater(() -> {
             try {
-                ClienteSwing cliente = new ClienteSwing(
-                        finalUsername,
-                        "localhost",
-                        12345
-                );
+                ClienteSwing cliente = new ClienteSwing(username.trim(), "localhost", 12345);
                 cliente.setVisible(true);
-
                 JOptionPane.showMessageDialog(
                         cliente,
                         "Conectado ao servidor.\n\n" +
                                 "Comandos disponíveis:\n" +
+                                "- Digite mensagens normalmente para enviar a todos\n" +
                                 "- /sair - Desconectar\n" +
-                                "- /usuarios - Listar usuários\n" +
-                                "- /privado:usuario:mensagem - Mensagem privada",
+                                "- /usuarios - Listar usuários online\n" +
+                                "- /privado:usuário:mensagem - Enviar mensagem privada",
                         "Bem-vindo ao Chat",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
+                        JOptionPane.INFORMATION_MESSAGE);
             } catch (IOException e) {
                 JOptionPane.showMessageDialog(
                         null,
                         "Não foi possível conectar ao servidor: " + e.getMessage(),
                         "Erro de Conexão",
-                        JOptionPane.ERROR_MESSAGE
-                );
+                        JOptionPane.ERROR_MESSAGE);
                 System.exit(1);
             }
         });
