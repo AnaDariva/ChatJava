@@ -266,7 +266,6 @@ public class ClienteSwing extends JFrame {
             try {
                 ClienteSwing cliente = new ClienteSwing(username.trim(), "localhost", 12345);
                 cliente.setVisible(true);
-                // Exibe mensagem de boas-vindas com instruções
                 JOptionPane.showMessageDialog(
                         cliente,
                         "Conectado ao servidor.\n\n" +
