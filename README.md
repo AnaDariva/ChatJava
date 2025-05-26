@@ -73,3 +73,7 @@ O servidor interpreta o conteúdo e decide o roteamento da mensagem com base no 
    ```sh
    git clone https://github.com/seu-usuario/ecommerce-perfumes.git
 
+--- 
+
+## 👩‍💻 Autor
+- **Ana Luisa Dariva Ramos** - Acadêmica de Análise e Desenvolvimento de Sistemas na UTFPR-PB  
