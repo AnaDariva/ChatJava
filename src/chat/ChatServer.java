@@ -2,7 +2,6 @@ package chat;
 
 import java.io.*;
 import java.net.*;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -157,8 +156,8 @@ public class ChatServer {
                 return;
             }
 
-            String recipient = parts[1].trim(); // Nome do destinatário
-            String privateMsg = parts[2];      // Conteúdo da mensagem
+            String recipient = parts[1].trim();
+            String privateMsg = parts[2];
 
             // Verifica se destinatário está online
             if (clients.containsKey(recipient)) {
