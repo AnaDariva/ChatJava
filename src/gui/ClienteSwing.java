@@ -15,7 +15,7 @@ import java.net.Socket;
  * - listagem de usuários online
  */
 public class ClienteSwing extends JFrame {
-    // Componentes da interface
+
     private JTextArea areaTexto;
     private JTextField campoEntrada;
 
